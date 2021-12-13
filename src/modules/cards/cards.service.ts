@@ -8,8 +8,10 @@ export class CardsService {
   cards = db.collection('cards');
   stores = db.collection('stores');
 
-  async testing(item) {
-    return this.getStoreItemQuantity(item);
+  async testing() {
+    // const card = this.cards.doc(id);
+    // const exists = await card.get();
+    // const update = await card.update({ ...updateCardDto });
     // return (await this.cards.where('name', '==', 'batman').get()).docs[0];
   }
 

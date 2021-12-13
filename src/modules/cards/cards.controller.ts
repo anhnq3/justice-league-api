@@ -21,10 +21,9 @@ export class CardsController {
     return this.cardsService.getAllCard();
   }
 
-  @Get('test/:item')
-  testing(@Param('item') item: string) {
-    // return item;
-    return this.cardsService.testing(item);
+  @Get('/test')
+  testing() {
+    return this.cardsService.testing();
   }
 
   @UsePipes(new ValidationPipe({ transform: true }))
