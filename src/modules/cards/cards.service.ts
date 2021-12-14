@@ -49,8 +49,6 @@ export class CardsService {
   }
 
   async updateCard(id: string, updateCardDto: UpdateCardDto) {
-    const { items } = updateCardDto;
-
     const card = this.cards.doc(id);
     const exists = await card.get();
     if (!exists.createTime)
@@ -62,27 +60,29 @@ export class CardsService {
     let agileProperty = exists.data().agile;
     let luckyProperty = exists.data().lucky;
 
-    // get new item
-    const item = this.stores.doc(items);
-    const getNewItem: any = await item.get();
-
-    // get new property item
-    const attackNew = getNewItem.data().attack;
-    const defenceNew = getNewItem.data().defence;
-    const agileNew = getNewItem.data().agile;
-    const luckyNew = getNewItem.data().lucky;
-
-    // This is property if card hasnt have an item
-    // property = property + new item property
-    attackProperty += attackNew;
-    defenceProperty += defenceNew;
-    agileProperty += agileNew;
-    luckyProperty += luckyNew;
-
     // Item update logic
     if (updateCardDto.items) {
-      // If this card already have item
+      const { items } = updateCardDto;
+      // get new item
+      const item = await this.findItem(items);
+      // const item = this.stores.doc(items);
+      const getNewItem: any = await item.get();
+
+      // get new property item
+      const attackNew = getNewItem.data().attack;
+      const defenceNew = getNewItem.data().defence;
+      const agileNew = getNewItem.data().agile;
+      const luckyNew = getNewItem.data().lucky;
+
+      // This is property if card hasnt have an item
+      // property = property + new item property
+      attackProperty += attackNew;
+      defenceProperty += defenceNew;
+      agileProperty += agileNew;
+      luckyProperty += luckyNew;
+
       if (exists.data().items) {
+        // If this card already have item
         // then that get old item
         const getOldItem: any = await this.stores
           .doc(exists.data().items)
@@ -100,31 +100,31 @@ export class CardsService {
         defenceProperty = defenceProperty - defenceOldItemPropery;
         agileProperty = agileProperty - agileOldItemPropery;
         luckyProperty = luckyProperty - luckyOldItemPropery;
-
-        return {
-          attackProperty,
-          defenceProperty,
-          agileProperty,
-          luckyProperty,
-        };
       }
-      // card.update({
-      //   ...updateCardDto,
-      //   attack: attackProperty,
-      //   defence: defenceProperty,
-      //   agile: agileProperty,
-      //   lucky: luckyProperty,
-      // });
 
-      return {
-        message: 'Update complete',
+      card.update({
         ...updateCardDto,
         attack: attackProperty,
         defence: defenceProperty,
         agile: agileProperty,
         lucky: luckyProperty,
+      });
+
+      return {
+        message: 'Update complete',
+        data: {
+          ...updateCardDto,
+          attack: attackProperty,
+          defence: defenceProperty,
+          agile: agileProperty,
+          lucky: luckyProperty,
+        },
       };
     }
+
+    // If dont have item then:
+    card.update({ ...updateCardDto });
+    return { message: 'Update complete', data: { ...updateCardDto } };
   }
 
   // Missing adding 1 in quantity and update card property
@@ -146,30 +146,48 @@ export class CardsService {
     const exists = await card.get();
     if (!exists.createTime)
       throw new HttpException('Card id is not found', HttpStatus.BAD_REQUEST);
-    const storeData = (
-      await (await this.findItem(exists.data().items)).get()
-    ).data();
-    const storeAttack = storeData.attack;
-    const storeDefence = storeData.defence;
-    const storeAgile = storeData.agile;
-    const storeLucky = storeData.agile;
-    // Clear item and update
-    const defaultAttack = exists.data().attack - storeAttack;
-    const defaultDefence = exists.data().defence - storeDefence;
-    const defaultAgile = exists.data().agile - storeAgile;
-    const defaultLucky = exists.data().lucky - storeLucky;
 
-    card.update({
-      items: '',
-      attack: defaultAttack,
-      defence: defaultDefence,
-      agile: defaultAgile,
-      lucky: defaultLucky,
-    });
+    //Get item id from card
+    const itemId = exists.data().items;
+    if (itemId) {
+      // Get card property
+      const attackCard = exists.data().attack;
+      const defenceCard = exists.data().defence;
+      const agileCard = exists.data().agile;
+      const luckyCard = exists.data().lucky;
 
-    return {
-      message: 'Clear item complete',
-    };
+      // Get item data
+      const itemData = (
+        await (await this.findItem(exists.data().items)).get()
+      ).data();
+
+      // get item property
+      const attackItem = itemData.attack;
+      const defenceItem = itemData.defence;
+      const agileItem = itemData.agile;
+      const luckyItem = itemData.lucky;
+
+      // Calculate property after clear item
+      const attack = attackCard - attackItem;
+      const defence = defenceCard - defenceItem;
+      const agile = agileCard - agileItem;
+      const lucky = luckyCard - luckyItem;
+
+      // Update
+      card.update({
+        items: '',
+        attack: attack,
+        defence: defence,
+        agile: agile,
+        lucky: lucky,
+      });
+
+      return {
+        message: 'Clear item complete',
+        data: { attack: attack, defence: defence, agile: agile, lucky: lucky },
+      };
+    }
+    return { message: 'Item is empty' };
   }
 
   // Function
