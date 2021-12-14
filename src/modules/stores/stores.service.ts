@@ -33,9 +33,9 @@ export class StoresService {
   async getStoreById(id: string) {
     const store = this.stores.doc(id);
     const exists = store.get();
-    if (!exists)
+    if (!(await exists).createTime)
       throw new HttpException('Store id is not found', HttpStatus.BAD_REQUEST);
-    return store;
+    return (await exists).data();
   }
 
   async updateStoreById(id: string, updateStoreDto: UpdateStoreDto) {

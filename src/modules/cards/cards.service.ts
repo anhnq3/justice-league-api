@@ -48,49 +48,86 @@ export class CardsService {
     return card.data();
   }
 
-  //This error
   async updateCard(id: string, updateCardDto: UpdateCardDto) {
+    const { items } = updateCardDto;
+
     const card = this.cards.doc(id);
     const exists = await card.get();
     if (!exists.createTime)
       throw new HttpException('Card id is not found', HttpStatus.BAD_REQUEST);
 
+    // Declare property(default)
+    let attackProperty = exists.data().attack;
+    let defenceProperty = exists.data().defence;
+    let agileProperty = exists.data().agile;
+    let luckyProperty = exists.data().lucky;
+
+    // get new item
+    const item = this.stores.doc(items);
+    const getNewItem: any = await item.get();
+
+    // get new property item
+    const attackNew = getNewItem.data().attack;
+    const defenceNew = getNewItem.data().defence;
+    const agileNew = getNewItem.data().agile;
+    const luckyNew = getNewItem.data().lucky;
+
+    // This is property if card hasnt have an item
+    // property = property + new item property
+    attackProperty += attackNew;
+    defenceProperty += defenceNew;
+    agileProperty += agileNew;
+    luckyProperty += luckyNew;
+
     // Item update logic
     if (updateCardDto.items) {
-      // const finditem = this.findItem(updateCardDto.items);
-      // const getStoreIdFromCard = await this.getStoreIdFromCard(id);
-      // const minusItem = this.minusItem(updateCardDto.items);
-      // const returnItem = this.returnItem(await this.getStoreIdFromCard(id));
-      // Promise.all([finditem, getStoreIdFromCard, minusItem, returnItem]).then(
-      //   (data: any) => {
-      //     console.log('array 0: \n', data[0]);
-      //     console.log('array 1: \n', data[1]);
-      //     console.log('array 2: \n', data[2]);
-      //     console.log('array 3: \n', data[3]);
-      //   },
-      // );
+      // If this card already have item
+      if (exists.data().items) {
+        // then that get old item
+        const getOldItem: any = await this.stores
+          .doc(exists.data().items)
+          .get();
+        // then that get old item data
+        const getOldItemData = getOldItem.data();
+        // get that item property
+        const attackOldItemPropery = getOldItemData.attack;
+        const defenceOldItemPropery = getOldItemData.defence;
+        const agileOldItemPropery = getOldItemData.agile;
+        const luckyOldItemPropery = getOldItemData.lucky;
 
-      // Check if store id exists
-      await this.findItem(updateCardDto.items);
-      // If items in dto different with item in database
-      const getStoreIdFromCard = await this.getStoreIdFromCard(id);
-      if (getStoreIdFromCard != updateCardDto.items) {
-        // If Items exists
-        if (getStoreIdFromCard) {
-          // Then plus again in store
-          await this.returnItem(getStoreIdFromCard);
-        }
-        // Then minus one quantity in store
-        await this.minusItem(updateCardDto.items);
+        // property = property - old item property
+        attackProperty = attackProperty - attackOldItemPropery;
+        defenceProperty = defenceProperty - defenceOldItemPropery;
+        agileProperty = agileProperty - agileOldItemPropery;
+        luckyProperty = luckyProperty - luckyOldItemPropery;
+
+        return {
+          attackProperty,
+          defenceProperty,
+          agileProperty,
+          luckyProperty,
+        };
       }
-    }
+      // card.update({
+      //   ...updateCardDto,
+      //   attack: attackProperty,
+      //   defence: defenceProperty,
+      //   agile: agileProperty,
+      //   lucky: luckyProperty,
+      // });
 
-    const update = await card.update({ ...updateCardDto });
-    if (!update)
-      throw new HttpException('Card hasn`t update', HttpStatus.BAD_REQUEST);
-    return { message: 'card update success', data: updateCardDto };
+      return {
+        message: 'Update complete',
+        ...updateCardDto,
+        attack: attackProperty,
+        defence: defenceProperty,
+        agile: agileProperty,
+        lucky: luckyProperty,
+      };
+    }
   }
 
+  // Missing adding 1 in quantity and update card property
   async deleteCard(id: string) {
     const card = this.cards.doc(id);
     const exists = await card.get();
@@ -105,9 +142,33 @@ export class CardsService {
   }
 
   async deleteItem(id: string) {
-    this.cards.doc(id).update({ item: '' });
+    const card = this.cards.doc(id);
+    const exists = await card.get();
+    if (!exists.createTime)
+      throw new HttpException('Card id is not found', HttpStatus.BAD_REQUEST);
+    const storeData = (
+      await (await this.findItem(exists.data().items)).get()
+    ).data();
+    const storeAttack = storeData.attack;
+    const storeDefence = storeData.defence;
+    const storeAgile = storeData.agile;
+    const storeLucky = storeData.agile;
+    // Clear item and update
+    const defaultAttack = exists.data().attack - storeAttack;
+    const defaultDefence = exists.data().defence - storeDefence;
+    const defaultAgile = exists.data().agile - storeAgile;
+    const defaultLucky = exists.data().lucky - storeLucky;
+
+    card.update({
+      items: '',
+      attack: defaultAttack,
+      defence: defaultDefence,
+      agile: defaultAgile,
+      lucky: defaultLucky,
+    });
+
     return {
-      message: 'Delete item complete',
+      message: 'Clear item complete',
     };
   }
 
@@ -119,31 +180,5 @@ export class CardsService {
       throw new HttpException('Item not exists', HttpStatus.BAD_REQUEST);
     }
     return itemExists;
-  }
-
-  async getStoreIdFromCard(cardId: string) {
-    const storeId: any = (await this.cards.doc(cardId).get()).data();
-    return storeId.items;
-  }
-
-  async getStoreItemQuantity(item: string) {
-    const getItemQuantity: any = (
-      await (await this.findItem(item)).get()
-    ).data();
-    return getItemQuantity.itemQuantity;
-  }
-
-  async minusItem(item: string) {
-    const itemQuantityMinus = (await this.getStoreItemQuantity(item)) - 1;
-    const itemFind = this.stores.doc(item);
-    await itemFind.update({ itemQuantity: itemQuantityMinus });
-    console.log('Quantity in store - 1');
-  }
-
-  async returnItem(item: string) {
-    const itemQuantityPlus = (await this.getStoreItemQuantity(item)) + 1;
-    const itemFind = this.stores.doc(item);
-    itemFind.update({ itemQuantity: itemQuantityPlus });
-    console.log('Quantity in store before + 1');
   }
 }
