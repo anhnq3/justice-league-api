@@ -49,6 +49,13 @@ export class CardsService {
   }
 
   async updateCard(id: string, updateCardDto: UpdateCardDto) {
+    const { agile, attack, lucky, defence } = updateCardDto;
+    if (agile || attack || lucky || defence)
+      throw new HttpException(
+        'This property cannot be update',
+        HttpStatus.BAD_REQUEST,
+      );
+
     const card = this.cards.doc(id);
     const exists = await card.get();
     if (!exists.createTime)
