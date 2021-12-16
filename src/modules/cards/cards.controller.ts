@@ -28,11 +28,6 @@ export class CardsController {
     return this.cardsService.getAllCard();
   }
 
-  // @Get('/test')
-  // testing() {
-  //   return this.cardsService.testing();
-  // }
-
   @ApiTags('Cards')
   @ApiOperation({ summary: 'Create a card' })
   @HttpCode(HttpStatus.OK)

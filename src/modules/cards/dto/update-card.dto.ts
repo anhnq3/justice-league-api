@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 
 export class UpdateCardDto {
   @ApiProperty({
@@ -57,7 +57,7 @@ export class UpdateCardDto {
     required: true,
     format: 'string',
   })
-  @IsString()
+  @IsArray()
   @IsOptional()
-  readonly items?: string;
+  readonly items?: string[];
 }

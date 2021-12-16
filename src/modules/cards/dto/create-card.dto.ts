@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateCardDto {
   @ApiProperty({
@@ -82,10 +88,7 @@ export class CreateCardDto {
   @IsNotEmpty()
   readonly lucky: number;
 
-  @ApiProperty({
-    example: '',
-    format: 'string',
-  })
-  @IsString()
-  readonly items: string;
+  @IsArray()
+  @IsOptional()
+  readonly items: string[];
 }

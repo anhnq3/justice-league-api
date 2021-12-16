@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class CreateStoreDto {
   @ApiProperty({
@@ -6,6 +7,8 @@ export class CreateStoreDto {
     required: true,
     format: 'string',
   })
+  @IsString()
+  @IsNotEmpty()
   readonly itemName: string;
 
   @ApiProperty({
@@ -13,6 +16,8 @@ export class CreateStoreDto {
     required: true,
     format: 'number',
   })
+  @IsNumber()
+  @IsNotEmpty()
   readonly itemQuantity: number;
   // readonly itemDefaultQuantity: number;
 
@@ -21,6 +26,8 @@ export class CreateStoreDto {
     required: true,
     format: 'number',
   })
+  @IsNumber()
+  @IsNotEmpty()
   readonly attack: number;
 
   @ApiProperty({
@@ -28,6 +35,8 @@ export class CreateStoreDto {
     required: true,
     format: 'number',
   })
+  @IsNumber()
+  @IsNotEmpty()
   readonly defence: number;
 
   @ApiProperty({
@@ -35,6 +44,8 @@ export class CreateStoreDto {
     required: true,
     format: 'number',
   })
+  @IsNumber()
+  @IsNotEmpty()
   readonly agile: number;
 
   @ApiProperty({
@@ -42,5 +53,7 @@ export class CreateStoreDto {
     required: true,
     format: 'string',
   })
+  @IsNumber()
+  @IsNotEmpty()
   readonly lucky: number;
 }

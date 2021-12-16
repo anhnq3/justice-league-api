@@ -8,37 +8,45 @@ export class CardsService {
   cards = db.collection('cards');
   stores = db.collection('stores');
 
-  async testing() {
-    // const card = this.cards.doc(id);
-    // const exists = await card.get();
-    // const update = await card.update({ ...updateCardDto });
-    // return (await this.cards.where('name', '==', 'batman').get()).docs[0];
-  }
-
   async getAllCard(): Promise<any> {
     const cardDetail = await this.cards.get();
     if (!cardDetail)
       throw new HttpException('Cannot get card', HttpStatus.BAD_REQUEST);
     const cardDoc = cardDetail.docs;
-    const cards: any[] = cardDoc.map((cards) => ({
+    const cards: any = cardDoc.map((cards: any) => ({
       id: cards.id,
-      ...cards.data(), // Get data from this?
+      name: cards.data().name,
+      realName: cards.data().realName,
+      joinedIn: cards.data().joinedIn,
+      sex: cards.data().sex,
+      items: cards.data().items,
+      image: cards.data().image,
+      attack: cards.data().attack,
+      defence: cards.data().defence,
+      lucky: cards.data().lucky,
+      angile: cards.data().angile,
     }));
-    // Get data then interface need to call like on line 21
-    // console.log(cards[0].name);
+    if (cards.length < 3)
+      return { message: 'You need to have at lease 3 cards', data: cards };
+
     return cards;
   }
 
   async createCards(createCardDto: CreateCardDto) {
-    const create = await this.cards.add({ ...createCardDto });
+    if (createCardDto.items)
+      throw new HttpException(
+        'Items can`t be create must be in update',
+        HttpStatus.BAD_REQUEST,
+      );
+    if ((await this.cards.get()).docs.length > 6)
+      return { message: 'Card maximum number is 7' };
+    const create = await this.cards.add({ ...createCardDto, items: [] });
     if (!create)
       throw new HttpException('Card hasn`t create', HttpStatus.BAD_REQUEST);
-    if (createCardDto.items) {
-      const item = this.stores.doc(createCardDto.items).get();
-      if (!(await item).createTime)
-        throw new HttpException('Item is not found', HttpStatus.BAD_REQUEST);
-    }
-    return { message: 'card create success', data: createCardDto };
+    return {
+      message: 'card create success',
+      data: { ...createCardDto, items: [] },
+    };
   }
 
   async getCardById(id: string) {
@@ -50,7 +58,23 @@ export class CardsService {
 
   async updateCard(id: string, updateCardDto: UpdateCardDto) {
     const { agile, attack, lucky, defence } = updateCardDto;
-    if (agile || attack || lucky || defence)
+
+    if (lucky != undefined)
+      throw new HttpException(
+        'This property cannot be update',
+        HttpStatus.BAD_REQUEST,
+      );
+    if (agile != undefined)
+      throw new HttpException(
+        'This property cannot be update',
+        HttpStatus.BAD_REQUEST,
+      );
+    if (attack != undefined)
+      throw new HttpException(
+        'This property cannot be update',
+        HttpStatus.BAD_REQUEST,
+      );
+    if (defence != undefined)
       throw new HttpException(
         'This property cannot be update',
         HttpStatus.BAD_REQUEST,
@@ -70,52 +94,63 @@ export class CardsService {
     // Item update logic
     if (updateCardDto.items) {
       const { items } = updateCardDto;
+
+      const findItem = [];
+
+      // Check item
+      for (let i = 0; i < items.length; i++)
+        findItem.push(await this.findItem(items[i]));
+
       // get new item
-      const item = await this.findItem(items);
-      // const item = this.stores.doc(items);
-      const getNewItem: any = await item.get();
+      for (let i = 0; i < items.length; i++) {
+        // Find item
+        const item = findItem[i];
+        // const item = await this.findItem(items[i]);
 
-      // get new property item
-      const attackNew = getNewItem.data().attack;
-      const defenceNew = getNewItem.data().defence;
-      const agileNew = getNewItem.data().agile;
-      const luckyNew = getNewItem.data().lucky;
+        // Get item
+        const getNewItem: any = await item.get();
 
-      // This is property if card hasnt have an item
-      // property = property + new item property
-      attackProperty += attackNew;
-      defenceProperty += defenceNew;
-      agileProperty += agileNew;
-      luckyProperty += luckyNew;
+        // get new property item
+        const attackNew = getNewItem.data().attack;
+        const defenceNew = getNewItem.data().defence;
+        const agileNew = getNewItem.data().agile;
+        const luckyNew = getNewItem.data().lucky;
 
-      if (exists.data().items) {
+        // This is property if card hasnt have an item
+        // property = property + new item property
+        attackProperty += attackNew;
+        defenceProperty += defenceNew;
+        agileProperty += agileNew;
+        luckyProperty += luckyNew;
+
         // If this card already have item
-        // then that get old item
-        const getOldItem: any = await this.stores
-          .doc(exists.data().items)
-          .get();
-        // then that get old item data
-        const getOldItemData = getOldItem.data();
-        // get that item property
-        const attackOldItemPropery = getOldItemData.attack;
-        const defenceOldItemPropery = getOldItemData.defence;
-        const agileOldItemPropery = getOldItemData.agile;
-        const luckyOldItemPropery = getOldItemData.lucky;
+        if (exists.data().items[i]) {
+          return {
+            message: 'Please remove item before add again',
+            itemsExists: exists.data().items,
+          };
+        }
 
-        // property = property - old item property
-        attackProperty = attackProperty - attackOldItemPropery;
-        defenceProperty = defenceProperty - defenceOldItemPropery;
-        agileProperty = agileProperty - agileOldItemPropery;
-        luckyProperty = luckyProperty - luckyOldItemPropery;
+        // Get new item quantity
+        const newItemQuantity = getNewItem.data().itemQuantity;
+
+        // -1 quantity in stores
+        const quantityItemUpdate = newItemQuantity - 1;
+        this.notLowerThanZero(quantityItemUpdate);
+
+        // Update
+        // Update item quantity
+        item.update({ itemQuantity: quantityItemUpdate });
+
+        // Update cards
+        card.update({
+          ...updateCardDto,
+          attack: attackProperty,
+          defence: defenceProperty,
+          agile: agileProperty,
+          lucky: luckyProperty,
+        });
       }
-
-      card.update({
-        ...updateCardDto,
-        attack: attackProperty,
-        defence: defenceProperty,
-        agile: agileProperty,
-        lucky: luckyProperty,
-      });
 
       return {
         message: 'Update complete',
@@ -141,7 +176,10 @@ export class CardsService {
     if (!exists.createTime)
       throw new HttpException('Card id is not found', HttpStatus.BAD_REQUEST);
 
-    await card.delete();
+    if ((await this.cards.get()).docs.length < 4)
+      return { message: 'Number of cards now is 3 cannot delete more' };
+
+    card.delete();
     return {
       message: 'delete success',
       id,
@@ -154,44 +192,73 @@ export class CardsService {
     if (!exists.createTime)
       throw new HttpException('Card id is not found', HttpStatus.BAD_REQUEST);
 
+    let attackItem: number,
+      defenceItem: number,
+      agileItem: number,
+      luckyItem: number,
+      attackCard: number,
+      defenceCard: number,
+      agileCard: number,
+      luckyCard: number,
+      item: any,
+      getItem: any,
+      itemData: any;
+
     //Get item id from card
     const itemId = exists.data().items;
     if (itemId) {
       // Get card property
-      const attackCard = exists.data().attack;
-      const defenceCard = exists.data().defence;
-      const agileCard = exists.data().agile;
-      const luckyCard = exists.data().lucky;
+      attackCard = exists.data().attack;
+      defenceCard = exists.data().defence;
+      agileCard = exists.data().agile;
+      luckyCard = exists.data().lucky;
 
-      // Get item data
-      const itemData = (
-        await (await this.findItem(exists.data().items)).get()
-      ).data();
+      for (let i = 0; i < itemId.length; i++) {
+        // Find item
+        item = await this.findItem(exists.data().items[i]);
 
-      // get item property
-      const attackItem = itemData.attack;
-      const defenceItem = itemData.defence;
-      const agileItem = itemData.agile;
-      const luckyItem = itemData.lucky;
+        // Get item
+        getItem = await item.get();
 
-      // Calculate property after clear item
-      const attack = attackCard - attackItem;
-      const defence = defenceCard - defenceItem;
-      const agile = agileCard - agileItem;
-      const lucky = luckyCard - luckyItem;
+        // Get item data
+        itemData = getItem.data();
 
-      // Update
+        // get item property
+        attackItem = itemData.attack;
+        defenceItem = itemData.defence;
+        agileItem = itemData.agile;
+        luckyItem = itemData.lucky;
+
+        // Calculate property after clear item
+        attackCard = attackCard - attackItem;
+        defenceCard = defenceCard - defenceItem;
+        agileCard = agileCard - agileItem;
+        luckyCard = luckyCard - luckyItem;
+
+        //Check if it property lower than0
+        this.notLowerThanZero(attackCard);
+        this.notLowerThanZero(defenceCard);
+        this.notLowerThanZero(agileCard);
+        this.notLowerThanZero(luckyCard);
+      }
+
+      // Update card
       card.update({
-        items: '',
-        attack: attack,
-        defence: defence,
-        agile: agile,
-        lucky: lucky,
+        items: [],
+        attack: attackCard,
+        defence: defenceCard,
+        agile: agileCard,
+        lucky: luckyCard,
       });
 
       return {
         message: 'Clear item complete',
-        data: { attack: attack, defence: defence, agile: agile, lucky: lucky },
+        data: {
+          attack: attackCard,
+          defence: defenceCard,
+          agile: agileCard,
+          lucky: luckyCard,
+        },
       };
     }
     return { message: 'Item is empty' };
@@ -205,5 +272,13 @@ export class CardsService {
       throw new HttpException('Item not exists', HttpStatus.BAD_REQUEST);
     }
     return itemExists;
+  }
+
+  notLowerThanZero(number: number) {
+    if (number < 0)
+      throw new HttpException(
+        `Data is lower than 0 !!!`,
+        HttpStatus.BAD_REQUEST,
+      );
   }
 }
